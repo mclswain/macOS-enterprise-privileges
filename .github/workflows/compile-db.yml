@@ -10,7 +10,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Optional sanity check — lists schemes in the Xcode project
+      # Confirm the project path and list schemes so we know the exact scheme name
       - name: Show available Xcode schemes
         run: xcodebuild -list -project source/Privileges.xcodeproj || true
 
@@ -18,17 +18,20 @@ jobs:
         run: |
           brew update
           brew install compiledb
+          compiledb -V || true
 
-      - name: Generate compile_commands.json (no asset build)
+      - name: Generate compile_commands.json (parse xcodebuild output)
         working-directory: source
         run: |
-          # Generate compile_commands.json using xcodebuild output
-          compiledb -n xcodebuild \
+          set -euo pipefail
+          # The -- tells compiledb "everything after this is the build command"
+          compiledb -n -- xcodebuild \
             -project Privileges.xcodeproj \
             -scheme Privileges \
             -configuration Release \
             -destination "generic/platform=macOS" \
             CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
             COMPILER_INDEX_STORE_ENABLE=NO
 
       - name: Upload compile_commands.json
