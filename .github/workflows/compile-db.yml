@@ -10,27 +10,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # (Optional) show available schemes to confirm correct scheme name
       - name: Show available Xcode schemes
         run: xcodebuild -list -project source/Privileges.xcodeproj || true
 
-      - name: Install bear
+      - name: Install compiledb
         run: |
           brew update
-          brew install bear
+          brew install compiledb
 
-      - name: Build and generate compile_commands.json
+      - name: Generate compile_commands.json (no asset build)
+        working-directory: source
         run: |
-          bear -- \
-            xcodebuild \
-              -project source/Privileges.xcodeproj \
+          # Generate compile_commands.json from xcodebuild output
+          compiledb -n --command \
+            'xcodebuild -project Privileges.xcodeproj \
               -scheme Privileges \
               -configuration Release \
-              -destination 'generic/platform=macOS' \
+              -destination "generic/platform=macOS" \
               CODE_SIGNING_ALLOWED=NO \
-              CODE_SIGN_IDENTITY=""
+              COMPILER_INDEX_STORE_ENABLE=NO'
 
       - name: Upload compile_commands.json
         uses: actions/upload-artifact@v4
         with:
           name: compile-commands
-          path: compile_commands.json
+          path: source/compile_commands.json
