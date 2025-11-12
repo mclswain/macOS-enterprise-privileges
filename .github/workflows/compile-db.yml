@@ -10,29 +10,46 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Confirm the project path and list schemes so we know the exact scheme name
-      - name: Show available Xcode schemes
+      - name: List schemes (sanity check)
         run: xcodebuild -list -project source/Privileges.xcodeproj || true
 
-      - name: Install compiledb
+      - name: Pick scheme (prefer PrivilegesCLI)
+        id: pick
+        shell: bash
         run: |
-          brew update
-          brew install compiledb
-          compiledb -V || true
+          set -euo pipefail
+          LIST=$(xcodebuild -list -project source/Privileges.xcodeproj 2>/dev/null || true)
+          # Prefer PrivilegesCLI if present (no asset catalog), else fallback to Privileges
+          if echo "$LIST" | grep -qE '^[[:space:]]*PrivilegesCLI$'; then
+            SCHEME="PrivilegesCLI"
+          else
+            SCHEME="Privileges"
+          fi
+          echo "Using scheme: $SCHEME"
+          echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
 
-      - name: Generate compile_commands.json (parse xcodebuild output)
+      - name: Install xcpretty + reporter
+        run: |
+          gem install xcpretty xcpretty-json-formatter
+
+      - name: Build and generate compile_commands.json
         working-directory: source
         run: |
           set -euo pipefail
-          # The -- tells compiledb "everything after this is the build command"
-          compiledb -n -- xcodebuild \
+          # Build; pipe to xcpretty's JSON compilation database reporter
+          xcodebuild \
             -project Privileges.xcodeproj \
-            -scheme Privileges \
+            -scheme "$SCHEME" \
             -configuration Release \
             -destination "generic/platform=macOS" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY="" \
-            COMPILER_INDEX_STORE_ENABLE=NO
+            COMPILER_INDEX_STORE_ENABLE=NO \
+          | xcpretty -r json-compilation-database -o compile_commands.json
+
+          # Confirm file was created
+          test -s compile_commands.json
+          echo "Wrote $(wc -c < compile_commands.json) bytes to compile_commands.json"
 
       - name: Upload compile_commands.json
         uses: actions/upload-artifact@v4
