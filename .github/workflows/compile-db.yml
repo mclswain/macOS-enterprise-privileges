@@ -10,21 +10,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Sanity check: list the schemes that actually exist in the project
-      - name: List schemes
+      # List actual targets/schemes in the Xcode project (for debugging)
+      - name: List targets and schemes
         run: xcodebuild -list -project source/Privileges.xcodeproj || true
 
       - name: Install xcpretty + reporter
         run: |
           gem install xcpretty xcpretty-json-formatter
 
-      - name: Build and generate compile_commands.json
+      - name: Build CLI target and generate compile_commands.json
         working-directory: source
         run: |
           set -euo pipefail
+          # Build JUST the CLI target to avoid asset catalogs/actool
           xcodebuild \
             -project Privileges.xcodeproj \
-            -scheme Privileges \
+            -target PrivilegesCLI \
             -configuration Release \
             -destination "generic/platform=macOS" \
             CODE_SIGNING_ALLOWED=NO \
@@ -32,12 +33,9 @@ jobs:
             COMPILER_INDEX_STORE_ENABLE=NO \
           | xcpretty -r json-compilation-database -o compile_commands.json
 
-          # verify output exists and is non-empty
+          # Verify the compilation database exists and is non-empty
           test -s compile_commands.json
           echo "compile_commands.json size: $(wc -c < compile_commands.json) bytes"
 
       - name: Upload compile_commands.json
-        uses: actions/upload-artifact@v4
-        with:
-          name: compile-commands
-          path: source/compile_commands.json
+        uses: ac
