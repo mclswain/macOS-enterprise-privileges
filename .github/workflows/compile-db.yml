@@ -10,23 +10,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: List schemes (sanity check)
+      # Sanity check: list the schemes that actually exist in the project
+      - name: List schemes
         run: xcodebuild -list -project source/Privileges.xcodeproj || true
-
-      - name: Pick scheme (prefer PrivilegesCLI)
-        id: pick
-        shell: bash
-        run: |
-          set -euo pipefail
-          LIST=$(xcodebuild -list -project source/Privileges.xcodeproj 2>/dev/null || true)
-          # Prefer PrivilegesCLI if present (no asset catalog), else fallback to Privileges
-          if echo "$LIST" | grep -qE '^[[:space:]]*PrivilegesCLI$'; then
-            SCHEME="PrivilegesCLI"
-          else
-            SCHEME="Privileges"
-          fi
-          echo "Using scheme: $SCHEME"
-          echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
 
       - name: Install xcpretty + reporter
         run: |
@@ -36,10 +22,9 @@ jobs:
         working-directory: source
         run: |
           set -euo pipefail
-          # Build; pipe to xcpretty's JSON compilation database reporter
           xcodebuild \
             -project Privileges.xcodeproj \
-            -scheme "$SCHEME" \
+            -scheme Privileges \
             -configuration Release \
             -destination "generic/platform=macOS" \
             CODE_SIGNING_ALLOWED=NO \
@@ -47,9 +32,9 @@ jobs:
             COMPILER_INDEX_STORE_ENABLE=NO \
           | xcpretty -r json-compilation-database -o compile_commands.json
 
-          # Confirm file was created
+          # verify output exists and is non-empty
           test -s compile_commands.json
-          echo "Wrote $(wc -c < compile_commands.json) bytes to compile_commands.json"
+          echo "compile_commands.json size: $(wc -c < compile_commands.json) bytes"
 
       - name: Upload compile_commands.json
         uses: actions/upload-artifact@v4
