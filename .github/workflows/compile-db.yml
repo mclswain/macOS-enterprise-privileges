@@ -10,7 +10,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # List actual targets/schemes in the Xcode project (for debugging)
+      # Sanity check: list the targets/schemes that exist
       - name: List targets and schemes
         run: xcodebuild -list -project source/Privileges.xcodeproj || true
 
@@ -22,7 +22,6 @@ jobs:
         working-directory: source
         run: |
           set -euo pipefail
-          # Build JUST the CLI target to avoid asset catalogs/actool
           xcodebuild \
             -project Privileges.xcodeproj \
             -target PrivilegesCLI \
@@ -33,9 +32,12 @@ jobs:
             COMPILER_INDEX_STORE_ENABLE=NO \
           | xcpretty -r json-compilation-database -o compile_commands.json
 
-          # Verify the compilation database exists and is non-empty
+          # verify output exists and is non-empty
           test -s compile_commands.json
           echo "compile_commands.json size: $(wc -c < compile_commands.json) bytes"
 
       - name: Upload compile_commands.json
-        uses: ac
+        uses: actions/upload-artifact@v4
+        with:
+          name: compile-commands
+          path: source/compile_commands.json
