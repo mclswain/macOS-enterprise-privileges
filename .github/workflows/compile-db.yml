@@ -1,17 +1,34 @@
-name: compile-commands
-on: workflow_dispatch
 jobs:
-  macos:
+  build-macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Install tools
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # Show schemes for the actual project path under /source
+      - name: Show Xcode schemes
+        run: xcodebuild -list -project source/Privileges.xcodeproj || true
+
+      - name: Install bear
         run: |
+          brew update
           brew install bear
-      - name: Build & emit compile_commands.json
+
+      # IMPORTANT: point -project to source/Privileges.xcodeproj
+      - name: Build and generate compile_commands.json
+        working-directory: ${{ github.workspace }}
         run: |
-          bear -- xcodebuild -project Privileges.xcodeproj -scheme Privileges -configuration Release CODE_SIGNING_ALLOWED=NO
-      - uses: actions/upload-artifact@v4
+          bear -- \
+            xcodebuild \
+              -project source/Privileges.xcodeproj \
+              -scheme Privileges \
+              -configuration Release \
+              -destination 'generic/platform=macOS' \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGN_IDENTITY=""
+
+      - name: Upload compile_commands.json
+        uses: actions/upload-artifact@v4
         with:
-          name: compile_commands
+          name: compile-commands
           path: compile_commands.json
