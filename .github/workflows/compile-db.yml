@@ -10,7 +10,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # (Optional) show available schemes to confirm correct scheme name
+      # Optional sanity check — lists schemes in the Xcode project
       - name: Show available Xcode schemes
         run: xcodebuild -list -project source/Privileges.xcodeproj || true
 
@@ -22,14 +22,14 @@ jobs:
       - name: Generate compile_commands.json (no asset build)
         working-directory: source
         run: |
-          # Generate compile_commands.json from xcodebuild output
-          compiledb -n --command \
-            'xcodebuild -project Privileges.xcodeproj \
-              -scheme Privileges \
-              -configuration Release \
-              -destination "generic/platform=macOS" \
-              CODE_SIGNING_ALLOWED=NO \
-              COMPILER_INDEX_STORE_ENABLE=NO'
+          # Generate compile_commands.json using xcodebuild output
+          compiledb -n xcodebuild \
+            -project Privileges.xcodeproj \
+            -scheme Privileges \
+            -configuration Release \
+            -destination "generic/platform=macOS" \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO
 
       - name: Upload compile_commands.json
         uses: actions/upload-artifact@v4
