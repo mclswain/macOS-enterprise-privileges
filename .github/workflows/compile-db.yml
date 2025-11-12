@@ -1,12 +1,16 @@
+name: Build and emit compile_commands.json
+
+on:
+  workflow_dispatch:
+
 jobs:
   build-macos:
     runs-on: macos-latest
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Show schemes for the actual project path under /source
-      - name: Show Xcode schemes
+      - name: Show available Xcode schemes
         run: xcodebuild -list -project source/Privileges.xcodeproj || true
 
       - name: Install bear
@@ -14,9 +18,7 @@ jobs:
           brew update
           brew install bear
 
-      # IMPORTANT: point -project to source/Privileges.xcodeproj
       - name: Build and generate compile_commands.json
-        working-directory: ${{ github.workspace }}
         run: |
           bear -- \
             xcodebuild \
