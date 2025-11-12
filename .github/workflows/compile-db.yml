@@ -1,4 +1,4 @@
-name: Build and emit compile_commands.json
+name: Build PrivilegesCLI and upload binary artifact
 
 on:
   workflow_dispatch:
@@ -10,35 +10,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Sanity check: list the targets/schemes that exist
-      - name: Build CLI target (Release)
-          working-directory: source
-          run: |
-            set -euo pipefail
-            xcodebuild \
-              -project Privileges.xcodeproj \
-              -target PrivilegesCLI \
-              -configuration Release \
-              -destination "generic/platform=macOS" \
-              CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" COMPILER_INDEX_STORE_ENABLE=NO
-        
-        - name: Upload CLI binary
-          uses: actions/upload-artifact@v4
-          with:
-            name: cli-binary
-            path: |
-              source/build/Release/PrivilegesCLI
-              source/build/Release/PrivilegesCLI.app
-              source/build/Release/*
-      
+      # List all targets/schemes for visibility
       - name: List targets and schemes
         run: xcodebuild -list -project source/Privileges.xcodeproj || true
 
-      - name: Install xcpretty + reporter
-        run: |
-          gem install xcpretty xcpretty-json-formatter
+      # Install xcpretty for nicer logs
+      - name: Install xcpretty
+        run: gem install xcpretty
 
-      - name: Build CLI target and generate compile_commands.json
+      # Build only the CLI target (no asset catalogs)
+      - name: Build PrivilegesCLI target
         working-directory: source
         run: |
           set -euo pipefail
@@ -50,14 +31,14 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY="" \
             COMPILER_INDEX_STORE_ENABLE=NO \
-          | xcpretty -r json-compilation-database -o compile_commands.json
+          | xcpretty
 
-          # verify output exists and is non-empty
-          test -s compile_commands.json
-          echo "compile_commands.json size: $(wc -c < compile_commands.json) bytes"
-
-      - name: Upload compile_commands.json
+      # Upload the built binary (and any related outputs) as an artifact
+      - name: Upload CLI binary
         uses: actions/upload-artifact@v4
         with:
-          name: compile-commands
-          path: source/compile_commands.json
+          name: cli-binary
+          path: |
+            source/build/Release/PrivilegesCLI
+            source/build/Release/PrivilegesCLI.app
+            source/build/Release/*
